@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>GeekTry聊天室</title>
+
+    <link rel="stylesheet" th:href="@{/lib/element-ui/2.4.0/index.css}">
+
+    <script th:src="@{/lib/vue/2.5.16/vue.min.js}"></script>
+</head>
+<body>
+123123
+<script>
+    const ws = new WebSocket('ws://localhost:8082/myHandler');
+        ws.onopen = () => {
+            window.console.log('open');
+            ws.send('hello');
+        };
+</script>
+</body>
+</html>
