@@ -10,15 +10,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.17/vue.min.js"></script>
 </head>
 <body style="background-color: black;">
-<div class="container" id="app" style="margin-top: 100px; background-color: black;">
-    <div style="height: 400px;">
+<div class="container" id="app" style="background-color: black; padding: 10px 15px 10px;">
+    <div>
+        <span style="color: orangered;">当前在线人数：{{ onlineNumber }}</span>
+    </div>
+
+    <div>
         <div v-for="message in messages">
             <span style="color: lawngreen;">{{ message.datetime }} [ {{ message.sender }} ] {{ message.content }}</span>
         </div>
     </div>
 
     <div class="input-group">
-        <input type="text" class="form-control" placeholder="请输入要发送的消息，按Enter发送..." v-model="message" @keyup.enter="send">
+        <input type="text" class="form-control" placeholder="聊点什么吧~" v-model="message" @keyup.enter="send">
         <div class="input-group-append">
             <button class="btn btn-outline-secondary" type="button" @click="send">发送</button>
         </div>
@@ -29,6 +33,7 @@
     let vm = new Vue({
         el: '#app',
         data: {
+            onlineNumber: 0,
             messages: [],
             message: ''
         },
@@ -54,7 +59,12 @@
     };
 
     ws.onmessage = (evt) => {
-        vm.messages.push(JSON.parse(evt.data));
+        const response = JSON.parse(evt.data);
+
+        switch (response.type) {
+            case 'UPDATE_ONLINE_NUMBER' : vm.onlineNumber = response.onlineNumber; break;
+            case 'USER_MESSAGE' : vm.messages.push(response); break;
+        }
     };
 
     ws.onclose = () => {

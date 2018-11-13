@@ -2,7 +2,9 @@ package com.geektry.chat.framework;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.geektry.chat.vo.MessageVO;
+import com.geektry.chat.constant.MessageTypeEnum;
+import com.geektry.chat.vo.ServiceMessageVO;
+import com.geektry.chat.vo.UserMessageVO;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -19,57 +21,46 @@ public class ChatHandler extends TextWebSocketHandler {
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
-    private static Map<String, Map<String, WebSocketSession>> sessionGroupByRoomId = new HashMap<>();
+    private static Map<String, Map<String, WebSocketSession>> sessionGroups = new HashMap<>();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws IOException {
 
         String roomId = getRoomId(session);
 
-        if (sessionGroupByRoomId.containsKey(roomId)) {
-            sessionGroupByRoomId.get(roomId).put(session.getId(), session);
-        } else {
-            sessionGroupByRoomId.put(roomId, new HashMap<>() {{
-                put(session.getId(), session);
-            }});
-        }
+        this.putUserIntoRoom(session, roomId);
 
-        Map<String, WebSocketSession> sessionMap = sessionGroupByRoomId.get(roomId);
+        Map<String, WebSocketSession> sessions = sessionGroups.get(roomId);
 
-        String content = "欢迎进入GeekTry聊天室，尊敬的 [ " + this.shortenName(session.getId()) + " ] ~";
-        session.sendMessage(new TextMessage(this.getMessageJsonStr("", content)));
-        for (WebSocketSession sessionInGroup : sessionMap.values()) {
-            sessionInGroup.sendMessage(new TextMessage(this.getMessageJsonStr(this.shortenName(session.getId()), "已加入聊天室")));
-        }
+        this.sendEnterMessage(session, sessions);
+
+        this.updateOnlineNumber(sessions);
     }
 
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws IOException {
 
         String roomId = getRoomId(session);
-        Map<String, WebSocketSession> sessionMap = sessionGroupByRoomId.get(roomId);
 
-        for (WebSocketSession sessionInGroup : sessionMap.values()) {
-            sessionInGroup.sendMessage(new TextMessage(this.getMessageJsonStr(this.shortenName(session.getId()), message.getPayload())));
-        }
+        Map<String, WebSocketSession> sessions = sessionGroups.get(roomId);
+
+        this.sendMessage(session, message, sessions);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws IOException {
 
         String roomId = getRoomId(session);
-        Map<String, WebSocketSession> sessionMap = sessionGroupByRoomId.get(roomId);
 
-        sessionMap.remove(session.getId());
+        Map<String, WebSocketSession> sessions = sessionGroups.get(roomId);
 
-        if (sessionMap.isEmpty()) {
-            sessionGroupByRoomId.remove(roomId);
-            return;
+        boolean isRoomEmpty = this.takeUserOutOfRoom(session, sessions, roomId);
+
+        if (!isRoomEmpty) {
+            this.sendLeaveMessage(session, sessions);
         }
 
-        for (WebSocketSession sessionInGroup : sessionMap.values()) {
-            sessionInGroup.sendMessage(new TextMessage(this.getMessageJsonStr(this.shortenName(session.getId()), "已离开聊天室")));
-        }
+        this.updateOnlineNumber(sessions);
     }
 
     private String getRoomId(WebSocketSession session) {
@@ -78,14 +69,76 @@ public class ChatHandler extends TextWebSocketHandler {
         return queryString.split("=")[1];
     }
 
+    private void putUserIntoRoom(WebSocketSession session, String roomId) {
+
+        if (sessionGroups.containsKey(roomId)) {
+            sessionGroups.get(roomId).put(session.getId(), session);
+        } else {
+            sessionGroups.put(roomId, new HashMap<>() {{
+                put(session.getId(), session);
+            }});
+        }
+    }
+
+    private void sendEnterMessage(WebSocketSession session, Map<String, WebSocketSession> sessions) throws IOException {
+
+        String content = "欢迎进入GeekTry聊天室，尊敬的 [ " + this.shortenName(session.getId()) + " ] ~";
+        session.sendMessage(new TextMessage(this.getUserMessageJsonStr("", content)));
+        for (WebSocketSession sessionItem : sessions.values()) {
+            sessionItem.sendMessage(new TextMessage(this.getUserMessageJsonStr(this.shortenName(session.getId()), "已加入聊天室")));
+        }
+    }
+
+    private void sendMessage(WebSocketSession session, TextMessage message, Map<String, WebSocketSession> sessions) throws IOException {
+
+        for (WebSocketSession sessionItem : sessions.values()) {
+            sessionItem.sendMessage(new TextMessage(this.getUserMessageJsonStr(this.shortenName(session.getId()), message.getPayload())));
+        }
+    }
+
+    // return if room is empty
+    private boolean takeUserOutOfRoom(WebSocketSession session, Map<String, WebSocketSession> sessions, String roomId) {
+
+        sessions.remove(session.getId());
+
+        if (sessions.isEmpty()) {
+            sessionGroups.remove(roomId);
+            return true;
+        }
+        return false;
+    }
+
+    private void sendLeaveMessage(WebSocketSession session, Map<String, WebSocketSession> sessions) throws IOException {
+
+        for (WebSocketSession sessionItem : sessions.values()) {
+            sessionItem.sendMessage(new TextMessage(this.getUserMessageJsonStr(this.shortenName(session.getId()), "已离开聊天室")));
+        }
+    }
+
     private String shortenName(String name) {
 
         return name.substring(0, 8);
     }
 
-    private String getMessageJsonStr(String sender, String content) throws JsonProcessingException {
+    private void updateOnlineNumber(Map<String, WebSocketSession> sessions) throws IOException {
 
-        return new ObjectMapper().writeValueAsString(new MessageVO() {{
+        for (WebSocketSession sessionItem : sessions.values()) {
+            sessionItem.sendMessage(new TextMessage(this.getServiceMessageJsonStr(sessions.size())));
+        }
+    }
+
+    private String getServiceMessageJsonStr(Integer onlineNumber) throws JsonProcessingException {
+
+        return new ObjectMapper().writeValueAsString(new ServiceMessageVO() {{
+            setType(MessageTypeEnum.UPDATE_ONLINE_NUMBER);
+            setOnlineNumber(onlineNumber);
+        }});
+    }
+
+    private String getUserMessageJsonStr(String sender, String content) throws JsonProcessingException {
+
+        return new ObjectMapper().writeValueAsString(new UserMessageVO() {{
+            setType(MessageTypeEnum.USER_MESSAGE);
             setDatetime(LocalDateTime.now().format(FORMATTER));
             setSender(sender);
             setContent(content);

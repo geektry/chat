@@ -1,20 +1,27 @@
-/**
- * Copyright (c) 2012 Conversant Solutions. All rights reserved.
- * <p>
- * Created on 2018/11/13.
- */
 package com.geektry.chat.vo;
+
+import com.geektry.chat.constant.MessageTypeEnum;
 
 /**
  * @author Chaohang Fu
  */
-public class MessageVO {
+public class UserMessageVO {
+
+    private MessageTypeEnum type;
 
     private String datetime;
 
     private String sender;
 
     private String content;
+
+    public MessageTypeEnum getType() {
+        return type;
+    }
+
+    public void setType(MessageTypeEnum type) {
+        this.type = type;
+    }
 
     public String getDatetime() {
         return datetime;
@@ -42,8 +49,9 @@ public class MessageVO {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("MessageVO{");
-        sb.append("datetime='").append(datetime).append('\'');
+        final StringBuffer sb = new StringBuffer("UserMessageVO{");
+        sb.append("type=").append(type);
+        sb.append(", datetime='").append(datetime).append('\'');
         sb.append(", sender='").append(sender).append('\'');
         sb.append(", content='").append(content).append('\'');
         sb.append('}');
