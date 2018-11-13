@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>GeekTry聊天室</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css"/>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.17/vue.min.js"></script>
+</head>
+<body style="background-color: black;">
+<div class="container" id="app" style="margin-top: 100px; background-color: black;">
+    <div style="height: 400px;">
+        <div v-for="message in messages">
+            <span style="color: lawngreen;">{{ message.datetime }} [ {{ message.sender }} ] {{ message.content }}</span>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <input type="text" class="form-control" placeholder="请输入要发送的消息，按Enter发送..." v-model="message" @keyup.enter="send">
+        <div class="input-group-append">
+            <button class="btn btn-outline-secondary" type="button" @click="send">发送</button>
+        </div>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    let vm = new Vue({
+        el: '#app',
+        data: {
+            messages: [],
+            message: ''
+        },
+        methods: {
+            send: function () {
+                const message = this.message;
+
+                if (message === '') {
+                    window.alert('消息不能为空');
+                    throw new Error('消息不能为空');
+                }
+
+                ws.send(message);
+                this.message = '';
+            }
+        }
+    });
+
+    const ws = new WebSocket('wss://chat.geektry.com/api?room=[(${roomId})]');
+
+    ws.onopen = () => {
+        console.log('connection opened');
+    };
+
+    ws.onmessage = (evt) => {
+        vm.messages.push(JSON.parse(evt.data));
+    };
+
+    ws.onclose = () => {
+        console.log('connection closed');
+    };
+</script>
+</body>
+</html>
