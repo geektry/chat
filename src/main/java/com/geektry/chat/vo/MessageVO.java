@@ -5,7 +5,7 @@ import com.geektry.chat.constant.MessageTypeEnum;
 /**
  * @author Chaohang Fu
  */
-public class UserMessageVO {
+public class MessageVO {
 
     private MessageTypeEnum type;
 
@@ -45,16 +45,5 @@ public class UserMessageVO {
 
     public void setContent(String content) {
         this.content = content;
-    }
-
-    @Override
-    public String toString() {
-        final StringBuffer sb = new StringBuffer("UserMessageVO{");
-        sb.append("type=").append(type);
-        sb.append(", datetime='").append(datetime).append('\'');
-        sb.append(", sender='").append(sender).append('\'');
-        sb.append(", content='").append(content).append('\'');
-        sb.append('}');
-        return sb.toString();
     }
 }

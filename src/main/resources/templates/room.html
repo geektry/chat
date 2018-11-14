@@ -17,15 +17,13 @@
 
     <div>
         <div v-for="message in messages">
-            <span style="color: lawngreen;">{{ message.datetime }} [ {{ message.sender }} ] {{ message.content }}</span>
+            <span v-if="message.type == 'MESSAGE_SYSTEM'" style="color: grey;">[ {{ message.content }} ]</span>
+            <span v-if="message.type == 'MESSAGE_USER'" style="color: lawngreen;">{{ message.datetime }} [ {{ message.sender === userId ? '我' : message.sender }} ] {{ message.content }}</span>
         </div>
     </div>
 
     <div class="input-group">
-        <input type="text" class="form-control" placeholder="聊点什么吧~" v-model="message" @keyup.enter="send">
-        <div class="input-group-append">
-            <button class="btn btn-outline-secondary" type="button" @click="send">发送</button>
-        </div>
+        <input type="text" class="form-control" v-model="message" @keyup.enter="send" autofocus>
     </div>
 </div>
 
@@ -34,6 +32,7 @@
         el: '#app',
         data: {
             onlineNumber: 0,
+            userId: '',
             messages: [],
             message: ''
         },
@@ -53,22 +52,25 @@
     });
 
     const ws = new WebSocket('wss://chat.geektry.com/api?room=[(${roomId})]');
+    // const ws = new WebSocket('ws://192.168.6.20:8082/api?room=[(${roomId})]');
 
     ws.onopen = () => {
-        console.log('connection opened');
+        vm.messages.push({ type: 'MESSAGE_SYSTEM', content: '连接已建立' });
     };
 
     ws.onmessage = (evt) => {
         const response = JSON.parse(evt.data);
 
         switch (response.type) {
-            case 'UPDATE_ONLINE_NUMBER' : vm.onlineNumber = response.onlineNumber; break;
-            case 'USER_MESSAGE' : vm.messages.push(response); break;
+            case 'COMMAND_UPDATE_ONLINE_NUMBER' : vm.onlineNumber = response.onlineNumber; break;
+            case 'COMMAND_BIND_USER' : vm.userId = response.userId; break;
+            case 'MESSAGE_SYSTEM' : vm.messages.push(response); break;
+            case 'MESSAGE_USER' : vm.messages.push(response); break;
         }
     };
 
     ws.onclose = () => {
-        console.log('connection closed');
+        vm.messages.push({ type: 'MESSAGE_SYSTEM', content: '连接已断开' });
     };
 </script>
 </body>

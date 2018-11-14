@@ -3,8 +3,7 @@ package com.geektry.chat.framework;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.geektry.chat.constant.MessageTypeEnum;
-import com.geektry.chat.vo.ServiceMessageVO;
-import com.geektry.chat.vo.UserMessageVO;
+import com.geektry.chat.vo.MessageVO;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -30,11 +29,21 @@ public class ChatHandler extends TextWebSocketHandler {
 
         this.putUserIntoRoom(session, roomId);
 
+        this.bindUser(session);
+
         Map<String, WebSocketSession> sessions = sessionGroups.get(roomId);
 
-        this.sendEnterMessage(session, sessions);
-
         this.updateOnlineNumber(sessions);
+
+        this.sendEnterMessage(session, sessions);
+    }
+
+    private void bindUser(WebSocketSession session) throws IOException {
+
+        session.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
+            put("type", MessageTypeEnum.COMMAND_BIND_USER);
+            put("userId", shortenName(session.getId()));
+        }})));
     }
 
     @Override
@@ -82,10 +91,11 @@ public class ChatHandler extends TextWebSocketHandler {
 
     private void sendEnterMessage(WebSocketSession session, Map<String, WebSocketSession> sessions) throws IOException {
 
-        String content = "欢迎进入GeekTry聊天室，尊敬的 [ " + this.shortenName(session.getId()) + " ] ~";
-        session.sendMessage(new TextMessage(this.getUserMessageJsonStr("", content)));
         for (WebSocketSession sessionItem : sessions.values()) {
-            sessionItem.sendMessage(new TextMessage(this.getUserMessageJsonStr(this.shortenName(session.getId()), "已加入聊天室")));
+            sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new MessageVO() {{
+                setType(MessageTypeEnum.MESSAGE_SYSTEM);
+                setContent(shortenName(session.getId()) + "已加入聊天室");
+            }})));
         }
     }
 
@@ -111,7 +121,10 @@ public class ChatHandler extends TextWebSocketHandler {
     private void sendLeaveMessage(WebSocketSession session, Map<String, WebSocketSession> sessions) throws IOException {
 
         for (WebSocketSession sessionItem : sessions.values()) {
-            sessionItem.sendMessage(new TextMessage(this.getUserMessageJsonStr(this.shortenName(session.getId()), "已离开聊天室")));
+            sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new MessageVO() {{
+                setType(MessageTypeEnum.MESSAGE_SYSTEM);
+                setContent(shortenName(session.getId()) + "已离开聊天室");
+            }})));
         }
     }
 
@@ -123,22 +136,17 @@ public class ChatHandler extends TextWebSocketHandler {
     private void updateOnlineNumber(Map<String, WebSocketSession> sessions) throws IOException {
 
         for (WebSocketSession sessionItem : sessions.values()) {
-            sessionItem.sendMessage(new TextMessage(this.getServiceMessageJsonStr(sessions.size())));
+            sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
+                put("type", MessageTypeEnum.COMMAND_UPDATE_ONLINE_NUMBER);
+                put("onlineNumber", sessions.size());
+            }})));
         }
-    }
-
-    private String getServiceMessageJsonStr(Integer onlineNumber) throws JsonProcessingException {
-
-        return new ObjectMapper().writeValueAsString(new ServiceMessageVO() {{
-            setType(MessageTypeEnum.UPDATE_ONLINE_NUMBER);
-            setOnlineNumber(onlineNumber);
-        }});
     }
 
     private String getUserMessageJsonStr(String sender, String content) throws JsonProcessingException {
 
-        return new ObjectMapper().writeValueAsString(new UserMessageVO() {{
-            setType(MessageTypeEnum.USER_MESSAGE);
+        return new ObjectMapper().writeValueAsString(new MessageVO() {{
+            setType(MessageTypeEnum.MESSAGE_USER);
             setDatetime(LocalDateTime.now().format(FORMATTER));
             setSender(sender);
             setContent(content);
