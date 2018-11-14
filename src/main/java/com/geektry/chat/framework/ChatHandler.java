@@ -42,7 +42,7 @@ public class ChatHandler extends TextWebSocketHandler {
 
         session.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
             put("type", MessageTypeEnum.COMMAND_BIND_USER);
-            put("userId", shortenName(session.getId()));
+            put("userId", session.getId());
         }})));
     }
 
@@ -102,7 +102,7 @@ public class ChatHandler extends TextWebSocketHandler {
     private void sendMessage(WebSocketSession session, TextMessage message, Map<String, WebSocketSession> sessions) throws IOException {
 
         for (WebSocketSession sessionItem : sessions.values()) {
-            sessionItem.sendMessage(new TextMessage(this.getUserMessageJsonStr(this.shortenName(session.getId()), message.getPayload())));
+            sessionItem.sendMessage(new TextMessage(this.getUserMessageJsonStr(session.getId(), message.getPayload())));
         }
     }
 

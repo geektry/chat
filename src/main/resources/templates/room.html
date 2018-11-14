@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css"/>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.17/vue.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/identicon.js/2.3.3/pnglib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/identicon.js/2.3.3/identicon.min.js"></script>
 </head>
 <body style="background-color: black;">
 <div class="container" style="background-color: black;" id="app">
@@ -18,7 +20,7 @@
     <div style="height: 400px; overflow-y: auto;" id="message-box">
         <div v-for="message in messages">
             <span v-if="message.type == 'MESSAGE_SYSTEM'" style="color: grey;">[ {{ message.content }} ]</span>
-            <span v-if="message.type == 'MESSAGE_USER'" style="color: lawngreen;">{{ message.datetime }} [ {{ message.sender === userId ? '我' : message.sender }} ] {{ message.content }}</span>
+            <span v-if="message.type == 'MESSAGE_USER'" style="color: lawngreen;">{{ message.datetime }} [ <img width="21" height="21" :src="message.avatarDataUrl"> {{ message.sender === userId ? '我' : message.sender.substr(0, 8) }} ] {{ message.content }}</span>
         </div>
         <div style="height: 30px;"></div>
     </div>
@@ -66,7 +68,10 @@
             case 'COMMAND_UPDATE_ONLINE_NUMBER' : vm.onlineNumber = response.onlineNumber; break;
             case 'COMMAND_BIND_USER' : vm.userId = response.userId; break;
             case 'MESSAGE_SYSTEM' : vm.messages.push(response); break;
-            case 'MESSAGE_USER' : vm.messages.push(response); break;
+            case 'MESSAGE_USER' :
+                const avatarDataUrl = 'data:image/png;base64,' + new Identicon(response.sender, 21).toString();
+                response.avatarDataUrl = avatarDataUrl;
+                vm.messages.push(response); break;
         }
 
         const messageBox = document.querySelector('#message-box');
