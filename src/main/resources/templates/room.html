@@ -10,16 +10,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.17/vue.min.js"></script>
 </head>
 <body style="background-color: black;">
-<div class="container" id="app" style="background-color: black; padding: 10px 15px 10px;">
+<div class="container" style="background-color: black;" id="app">
     <div>
         <span style="color: orangered;">当前在线人数：{{ onlineNumber }}</span>
     </div>
 
-    <div>
+    <div style="height: 400px; overflow-y: auto;" id="message-box">
         <div v-for="message in messages">
             <span v-if="message.type == 'MESSAGE_SYSTEM'" style="color: grey;">[ {{ message.content }} ]</span>
             <span v-if="message.type == 'MESSAGE_USER'" style="color: lawngreen;">{{ message.datetime }} [ {{ message.sender === userId ? '我' : message.sender }} ] {{ message.content }}</span>
         </div>
+        <div style="height: 30px;"></div>
     </div>
 
     <div class="input-group">
@@ -67,6 +68,10 @@
             case 'MESSAGE_SYSTEM' : vm.messages.push(response); break;
             case 'MESSAGE_USER' : vm.messages.push(response); break;
         }
+
+        const messageBox = document.querySelector('#message-box');
+        const len = messageBox.children.length;
+        messageBox.children[len - 1].scrollIntoView();
     };
 
     ws.onclose = () => {
