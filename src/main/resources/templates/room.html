@@ -20,7 +20,7 @@
     <div style="height: 400px; overflow-y: auto;" id="message-box">
         <div v-for="message in messages">
             <span v-if="message.type == 'MESSAGE_SYSTEM'" style="color: grey;">[ {{ message.content }} ]</span>
-            <span v-if="message.type == 'MESSAGE_USER'" style="color: lawngreen;">{{ message.datetime }} [ <img width="21" height="21" :src="message.avatarDataUrl"> {{ message.sender === userId ? '我' : message.sender.substr(0, 8) }} ] {{ message.content }}</span>
+            <span v-if="message.type == 'MESSAGE_USER'" style="color: lawngreen;">{{ message.datetime }} [ <img :src="message.avatarDataUrl"> {{ message.sender === userId ? '我' : message.sender.substr(0, 8) }} ] {{ message.content }}</span>
         </div>
         <div style="height: 30px;"></div>
     </div>
