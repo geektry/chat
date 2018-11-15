@@ -9,9 +9,9 @@ public class MessageVO {
 
     private MessageTypeEnum type;
 
-    private String datetime;
+    private String dateTime;
 
-    private String sender;
+    private String userId;
 
     private String content;
 
@@ -23,20 +23,20 @@ public class MessageVO {
         this.type = type;
     }
 
-    public String getDatetime() {
-        return datetime;
+    public String getDateTime() {
+        return dateTime;
     }
 
-    public void setDatetime(String datetime) {
-        this.datetime = datetime;
+    public void setDateTime(String dateTime) {
+        this.dateTime = dateTime;
     }
 
-    public String getSender() {
-        return sender;
+    public String getUserId() {
+        return userId;
     }
 
-    public void setSender(String sender) {
-        this.sender = sender;
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getContent() {

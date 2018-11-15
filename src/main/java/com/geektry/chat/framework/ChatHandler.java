@@ -25,33 +25,25 @@ public class ChatHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws IOException {
 
-        String roomId = getRoomId(session);
+        String groupId = getGroupId(session);
 
-        this.putUserIntoRoom(session, roomId);
+        this.putSessionIntoGroup(session, groupId);
+
+        Map<String, WebSocketSession> sessions = sessionGroups.get(groupId);
 
         this.bindUser(session);
 
-        Map<String, WebSocketSession> sessions = sessionGroups.get(roomId);
+        this.userEnterRoom(session, sessions);
 
         this.updateOnlineNumber(sessions);
-
-        this.sendEnterMessage(session, sessions);
-    }
-
-    private void bindUser(WebSocketSession session) throws IOException {
-
-        session.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
-            put("type", MessageTypeEnum.COMMAND_BIND_USER);
-            put("userId", session.getId());
-        }})));
     }
 
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws IOException {
 
-        String roomId = getRoomId(session);
+        String groupId = getGroupId(session);
 
-        Map<String, WebSocketSession> sessions = sessionGroups.get(roomId);
+        Map<String, WebSocketSession> sessions = sessionGroups.get(groupId);
 
         this.sendMessage(session, message, sessions);
     }
@@ -59,42 +51,80 @@ public class ChatHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws IOException {
 
-        String roomId = getRoomId(session);
+        String groupId = getGroupId(session);
 
-        Map<String, WebSocketSession> sessions = sessionGroups.get(roomId);
+        Map<String, WebSocketSession> sessions = sessionGroups.get(groupId);
 
-        boolean isRoomEmpty = this.takeUserOutOfRoom(session, sessions, roomId);
+        this.takeSessionOutOfGroup(session, sessions);
 
-        if (!isRoomEmpty) {
-            this.sendLeaveMessage(session, sessions);
+        if (sessions.isEmpty()) {
+            sessionGroups.remove(groupId);
+            return;
         }
+
+        this.userLeaveRoom(session, sessions);
 
         this.updateOnlineNumber(sessions);
     }
 
-    private String getRoomId(WebSocketSession session) {
+    private String getGroupId(WebSocketSession session) {
 
         String queryString = ((StandardWebSocketSession) session).getNativeSession().getQueryString();
         return queryString.split("=")[1];
     }
 
-    private void putUserIntoRoom(WebSocketSession session, String roomId) {
+    private void putSessionIntoGroup(WebSocketSession session, String groupId) {
 
-        if (sessionGroups.containsKey(roomId)) {
-            sessionGroups.get(roomId).put(session.getId(), session);
+        if (sessionGroups.containsKey(groupId)) {
+            sessionGroups.get(groupId).put(session.getId(), session);
         } else {
-            sessionGroups.put(roomId, new HashMap<>() {{
+            sessionGroups.put(groupId, new HashMap<>() {{
                 put(session.getId(), session);
             }});
         }
     }
 
-    private void sendEnterMessage(WebSocketSession session, Map<String, WebSocketSession> sessions) throws IOException {
+    private void takeSessionOutOfGroup(WebSocketSession session, Map<String, WebSocketSession> sessions) {
+
+        sessions.remove(session.getId());
+    }
+
+    private void bindUser(WebSocketSession session) throws IOException {
+
+        session.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
+            put("type", MessageTypeEnum.EVT_BIND_USER);
+            put("userId", session.getId());
+        }})));
+    }
+
+    private void userEnterRoom(WebSocketSession session, Map<String, WebSocketSession> sessions) throws IOException {
 
         for (WebSocketSession sessionItem : sessions.values()) {
-            sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new MessageVO() {{
-                setType(MessageTypeEnum.MESSAGE_SYSTEM);
-                setContent(shortenName(session.getId()) + "已加入聊天室");
+            sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
+                put("type", MessageTypeEnum.EVT_USER_ENTER_ROOM);
+                put("dateTime", LocalDateTime.now().format(FORMATTER));
+                put("userId", session.getId());
+            }})));
+        }
+    }
+
+    private void userLeaveRoom(WebSocketSession session, Map<String, WebSocketSession> sessions) throws IOException {
+
+        for (WebSocketSession sessionItem : sessions.values()) {
+            sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
+                put("type", MessageTypeEnum.EVT_USER_LEAVE_ROOM);
+                put("dateTime", LocalDateTime.now().format(FORMATTER));
+                put("userId", session.getId());
+            }})));
+        }
+    }
+
+    private void updateOnlineNumber(Map<String, WebSocketSession> sessions) throws IOException {
+
+        for (WebSocketSession sessionItem : sessions.values()) {
+            sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
+                put("type", MessageTypeEnum.EVT_UPDATE_ONLINE_NUMBER);
+                put("onlineNumber", sessions.size());
             }})));
         }
     }
@@ -106,49 +136,12 @@ public class ChatHandler extends TextWebSocketHandler {
         }
     }
 
-    // return if room is empty
-    private boolean takeUserOutOfRoom(WebSocketSession session, Map<String, WebSocketSession> sessions, String roomId) {
-
-        sessions.remove(session.getId());
-
-        if (sessions.isEmpty()) {
-            sessionGroups.remove(roomId);
-            return true;
-        }
-        return false;
-    }
-
-    private void sendLeaveMessage(WebSocketSession session, Map<String, WebSocketSession> sessions) throws IOException {
-
-        for (WebSocketSession sessionItem : sessions.values()) {
-            sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new MessageVO() {{
-                setType(MessageTypeEnum.MESSAGE_SYSTEM);
-                setContent(shortenName(session.getId()) + "已离开聊天室");
-            }})));
-        }
-    }
-
-    private String shortenName(String name) {
-
-        return name.substring(0, 8);
-    }
-
-    private void updateOnlineNumber(Map<String, WebSocketSession> sessions) throws IOException {
-
-        for (WebSocketSession sessionItem : sessions.values()) {
-            sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
-                put("type", MessageTypeEnum.COMMAND_UPDATE_ONLINE_NUMBER);
-                put("onlineNumber", sessions.size());
-            }})));
-        }
-    }
-
-    private String getUserMessageJsonStr(String sender, String content) throws JsonProcessingException {
+    private String getUserMessageJsonStr(String userId, String content) throws JsonProcessingException {
 
         return new ObjectMapper().writeValueAsString(new MessageVO() {{
-            setType(MessageTypeEnum.MESSAGE_USER);
-            setDatetime(LocalDateTime.now().format(FORMATTER));
-            setSender(sender);
+            setType(MessageTypeEnum.MSG_USER);
+            setDateTime(LocalDateTime.now().format(FORMATTER));
+            setUserId(userId);
             setContent(content);
         }});
     }

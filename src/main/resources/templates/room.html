@@ -15,12 +15,13 @@
 <div class="container" style="background-color: black;" id="app">
     <div>
         <span style="color: orangered;">当前在线人数：{{ onlineNumber }}</span>
+        <img v-for="user in onlineUsers" :src="user.avatarDataUrl">
     </div>
 
     <div style="height: 400px; overflow-y: auto;" id="message-box">
         <div v-for="message in messages">
-            <span v-if="message.type == 'MESSAGE_SYSTEM'" style="color: grey;">[ {{ message.content }} ]</span>
-            <span v-if="message.type == 'MESSAGE_USER'" style="color: lawngreen;">{{ message.datetime }} [ <img :src="message.avatarDataUrl"> {{ message.sender === userId ? '我' : message.sender.substr(0, 8) }} ] {{ message.content }}</span>
+            <span v-if="message.type == 'MSG_SYSTEM'" style="color: grey;">[ {{ message.content }} ]</span>
+            <span v-if="message.type == 'MSG_USER'" style="color: lawngreen;">{{ message.datetime }} [ <img :src="message.avatarDataUrl"> {{ message.userId === myUserId ? '' : message.userId.substr(0, 4) }} ] {{ message.content }}</span>
         </div>
         <div style="height: 30px;"></div>
     </div>
@@ -35,7 +36,8 @@
         el: '#app',
         data: {
             onlineNumber: 0,
-            userId: '',
+            onlineUsers: {},
+            myUserId: '',
             messages: [],
             message: ''
         },
@@ -50,28 +52,46 @@
 
                 ws.send(message);
                 this.message = '';
+            },
+            getAvatarDataUrl:  function (hash) {
+                return 'data:image/png;base64,' + new Identicon(hash, 21).toString();
             }
         }
     });
 
     const ws = new WebSocket('wss://chat.geektry.com/api?room=[(${roomId})]');
-    // const ws = new WebSocket('ws://192.168.6.20:8082/api?room=[(${roomId})]');
+    // const ws = new WebSocket('ws://192.168.4.164:8082/api?room=[(${roomId})]');
 
     ws.onopen = () => {
-        vm.messages.push({ type: 'MESSAGE_SYSTEM', content: '连接已建立' });
+        vm.messages.push({ type: 'MSG_SYSTEM', content: '连接已建立' });
     };
 
     ws.onmessage = (evt) => {
         const response = JSON.parse(evt.data);
 
         switch (response.type) {
-            case 'COMMAND_UPDATE_ONLINE_NUMBER' : vm.onlineNumber = response.onlineNumber; break;
-            case 'COMMAND_BIND_USER' : vm.userId = response.userId; break;
-            case 'MESSAGE_SYSTEM' : vm.messages.push(response); break;
-            case 'MESSAGE_USER' :
-                const avatarDataUrl = 'data:image/png;base64,' + new Identicon(response.sender, 21).toString();
-                response.avatarDataUrl = avatarDataUrl;
-                vm.messages.push(response); break;
+            case 'EVT_BIND_USER' :
+                vm.myUserId = response.userId;
+                break;
+            case 'EVT_USER_ENTER_ROOM' :
+                vm.messages.push({ type: 'MSG_SYSTEM', content: response.dateTime + ' ' + response.userId.substr(0, 4) + ' 已进入聊天室' });
+                response.avatarDataUrl = vm.getAvatarDataUrl(response.userId);
+                vm.onlineUsers[response.userId] = response;
+                break;
+            case 'EVT_USER_LEAVE_ROOM' :
+                vm.messages.push({ type: 'MSG_SYSTEM', content: response.dateTime + ' ' + response.userId.substr(0, 4) + ' 已离开聊天室' });
+                delete vm.onlineUsers[response.userId];
+                break;
+            case 'EVT_UPDATE_ONLINE_NUMBER' :
+                vm.onlineNumber = response.onlineNumber;
+                break;
+            case 'MSG_SYSTEM' :
+                vm.messages.push(response);
+                break;
+            case 'MSG_USER' :
+                response.avatarDataUrl = vm.getAvatarDataUrl(response.userId);
+                vm.messages.push(response);
+                break;
         }
 
         const messageBox = document.querySelector('#message-box');
@@ -80,7 +100,7 @@
     };
 
     ws.onclose = () => {
-        vm.messages.push({ type: 'MESSAGE_SYSTEM', content: '连接已断开' });
+        vm.messages.push({ type: 'MSG_SYSTEM', content: '连接已断开' });
     };
 </script>
 </body>
