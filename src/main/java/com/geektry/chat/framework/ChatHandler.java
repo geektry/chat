@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.geektry.chat.constant.MessageTypeEnum;
 import com.geektry.chat.vo.MessageVO;
+import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -16,6 +17,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
+@Component
 public class ChatHandler extends TextWebSocketHandler {
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
@@ -31,11 +33,9 @@ public class ChatHandler extends TextWebSocketHandler {
 
         Map<String, WebSocketSession> sessions = sessionGroups.get(groupId);
 
-        this.bindUser(session);
+        this.initRoomInfo(session, sessions);
 
         this.userEnterRoom(session, sessions);
-
-        this.updateOnlineNumber(sessions);
     }
 
     @Override
@@ -63,8 +63,6 @@ public class ChatHandler extends TextWebSocketHandler {
         }
 
         this.userLeaveRoom(session, sessions);
-
-        this.updateOnlineNumber(sessions);
     }
 
     private String getGroupId(WebSocketSession session) {
@@ -89,11 +87,12 @@ public class ChatHandler extends TextWebSocketHandler {
         sessions.remove(session.getId());
     }
 
-    private void bindUser(WebSocketSession session) throws IOException {
+    private void initRoomInfo(WebSocketSession session, Map<String, WebSocketSession> sessions) throws IOException {
 
         session.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
-            put("type", MessageTypeEnum.EVT_BIND_USER);
-            put("userId", session.getId());
+            put("type", MessageTypeEnum.EVT_INIT_ROOM_INFO);
+            put("myUserId", session.getId());
+            put("onlineUserIds", sessions.keySet());
         }})));
     }
 
@@ -102,7 +101,6 @@ public class ChatHandler extends TextWebSocketHandler {
         for (WebSocketSession sessionItem : sessions.values()) {
             sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
                 put("type", MessageTypeEnum.EVT_USER_ENTER_ROOM);
-                put("dateTime", LocalDateTime.now().format(FORMATTER));
                 put("userId", session.getId());
             }})));
         }
@@ -113,18 +111,7 @@ public class ChatHandler extends TextWebSocketHandler {
         for (WebSocketSession sessionItem : sessions.values()) {
             sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
                 put("type", MessageTypeEnum.EVT_USER_LEAVE_ROOM);
-                put("dateTime", LocalDateTime.now().format(FORMATTER));
                 put("userId", session.getId());
-            }})));
-        }
-    }
-
-    private void updateOnlineNumber(Map<String, WebSocketSession> sessions) throws IOException {
-
-        for (WebSocketSession sessionItem : sessions.values()) {
-            sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
-                put("type", MessageTypeEnum.EVT_UPDATE_ONLINE_NUMBER);
-                put("onlineNumber", sessions.size());
             }})));
         }
     }

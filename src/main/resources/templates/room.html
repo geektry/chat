@@ -6,28 +6,36 @@
     <title>GeekTry聊天室</title>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css"/>
+    <style>
+        #app { background-color: black; }
+        #message-box { height: 400px; overflow-y: auto; }
+        #input-box>input { border-color: lawngreen; background-color: black; color: lawngreen; }
+    </style>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.17/vue.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/identicon.js/2.3.3/pnglib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/identicon.js/2.3.3/identicon.min.js"></script>
 </head>
 <body style="background-color: black;">
-<div class="container" style="background-color: black;" id="app">
+<div class="container" id="app">
     <div>
-        <span style="color: orangered;">当前在线人数：{{ onlineNumber }}</span>
-        <img v-for="user in onlineUsers" :src="user.avatarDataUrl">
+        <span style="color: orangered;">当前在线人数：{{ onlineUserIds.length }}</span>
+        <br>
+        <img v-for="userId in onlineUserIds" :src="getAvatarDataUrl(userId)">
     </div>
 
-    <div style="height: 400px; overflow-y: auto;" id="message-box">
+    <div id="message-box">
         <div v-for="message in messages">
             <span v-if="message.type == 'MSG_SYSTEM'" style="color: grey;">[ {{ message.content }} ]</span>
-            <span v-if="message.type == 'MSG_USER'" style="color: lawngreen;">{{ message.datetime }} [ <img :src="message.avatarDataUrl"> {{ message.userId === myUserId ? '' : message.userId.substr(0, 4) }} ] {{ message.content }}</span>
+            <span v-if="message.type == 'MSG_USER'" style="color: lawngreen;">
+                {{ message.datetime }} [ <img :src="getAvatarDataUrl(message.userId)"> {{ message.userId === myUserId ? '' : message.userId.substr(0, 4) }} ] {{ message.content }}
+            </span>
         </div>
         <div style="height: 30px;"></div>
     </div>
 
-    <div class="input-group">
-        <input type="text" class="form-control" v-model="message" @keyup.enter="send" style="border-color: lawngreen; background-color: black; color: lawngreen;" autofocus>
+    <div class="input-group" id="input-box">
+        <input type="text" class="form-control" v-model="message" @keyup.enter="send" autofocus>
     </div>
 </div>
 
@@ -35,9 +43,8 @@
     let vm = new Vue({
         el: '#app',
         data: {
-            onlineNumber: 0,
-            onlineUsers: {},
             myUserId: '',
+            onlineUserIds: [],
             messages: [],
             message: ''
         },
@@ -46,8 +53,8 @@
                 const message = this.message;
 
                 if (message === '') {
-                    window.alert('消息不能为空');
-                    throw new Error('消息不能为空');
+                    this.messages.push({ type: 'MSG_SYSTEM', content: '消息不能为空' });
+                    return;
                 }
 
                 ws.send(message);
@@ -70,26 +77,28 @@
         const response = JSON.parse(evt.data);
 
         switch (response.type) {
-            case 'EVT_BIND_USER' :
-                vm.myUserId = response.userId;
+            case 'EVT_INIT_ROOM_INFO' :
+                vm.myUserId = response.myUserId;
+                vm.onlineUserIds = response.onlineUserIds;
                 break;
             case 'EVT_USER_ENTER_ROOM' :
-                vm.messages.push({ type: 'MSG_SYSTEM', content: response.dateTime + ' ' + response.userId.substr(0, 4) + ' 已进入聊天室' });
-                response.avatarDataUrl = vm.getAvatarDataUrl(response.userId);
-                vm.onlineUsers[response.userId] = response;
+                if (response.userId === vm.myUserId) { break; }
+                vm.onlineUserIds.push(response.userId);
+                vm.messages.push({ type: 'MSG_SYSTEM', content: response.userId.substr(0, 4) + ' 已进入聊天室' });
                 break;
             case 'EVT_USER_LEAVE_ROOM' :
-                vm.messages.push({ type: 'MSG_SYSTEM', content: response.dateTime + ' ' + response.userId.substr(0, 4) + ' 已离开聊天室' });
-                delete vm.onlineUsers[response.userId];
-                break;
-            case 'EVT_UPDATE_ONLINE_NUMBER' :
-                vm.onlineNumber = response.onlineNumber;
+                for (let i = 0, l = vm.onlineUserIds.length; i < l; i++) {
+                    if (vm.onlineUserIds[i] === response.userId) {
+                        vm.onlineUserIds.splice(i, 1);
+                        break;
+                    }
+                }
+                vm.messages.push({ type: 'MSG_SYSTEM', content: response.userId.substr(0, 4) + ' 已离开聊天室' });
                 break;
             case 'MSG_SYSTEM' :
                 vm.messages.push(response);
                 break;
             case 'MSG_USER' :
-                response.avatarDataUrl = vm.getAvatarDataUrl(response.userId);
                 vm.messages.push(response);
                 break;
         }
