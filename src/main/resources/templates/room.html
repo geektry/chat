@@ -28,7 +28,7 @@
         <div v-for="message in messages">
             <span v-if="message.type == 'MSG_SYSTEM'" style="color: grey;">[ {{ message.content }} ]</span>
             <span v-if="message.type == 'MSG_USER'" style="color: lawngreen;">
-                [{{ message.dateTime }}] <img :src="getAvatarDataUrl(message.userId)"> {{ message.userId === myUserId ? '' : message.userId.substr(0, 4) }} {{ message.content }}
+                [ {{ message.dateTime }} ] <img :src="getAvatarDataUrl(message.userId)"> {{ message.userId === myUserId ? '' : message.userId.substr(0, 4) }} {{ message.content }}
             </span>
         </div>
         <div style="height: 25px;"></div>
