@@ -7,8 +7,8 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css"/>
     <style>
-        #app { background-color: black; }
-        #message-box { height: 400px; overflow-y: auto; }
+        body { background-color: black; }
+        #message-box { height: 220px; overflow-y: auto; }
         #input-box>input { border-color: lawngreen; background-color: black; color: lawngreen; }
     </style>
 
@@ -16,30 +16,30 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/identicon.js/2.3.3/pnglib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/identicon.js/2.3.3/identicon.min.js"></script>
 </head>
-<body style="background-color: black;">
-<div class="container" id="app">
+<body>
+<div id="app" class="container">
     <div>
-        <span style="color: orangered;">当前在线人数：{{ onlineUserIds.length }}</span>
+        <img v-for="userId in onlineUserIds" :src="getAvatarDataUrl(userId)" style="margin-right: 2px;">
         <br>
-        <img v-for="userId in onlineUserIds" :src="getAvatarDataUrl(userId)">
+        <span style="color: orangered;">当前在线人数：{{ onlineUserIds.length }}</span>
     </div>
 
     <div id="message-box">
         <div v-for="message in messages">
             <span v-if="message.type == 'MSG_SYSTEM'" style="color: grey;">[ {{ message.content }} ]</span>
             <span v-if="message.type == 'MSG_USER'" style="color: lawngreen;">
-                {{ message.datetime }} [ <img :src="getAvatarDataUrl(message.userId)"> {{ message.userId === myUserId ? '' : message.userId.substr(0, 4) }} ] {{ message.content }}
+                [{{ message.dateTime }}] <img :src="getAvatarDataUrl(message.userId)"> {{ message.userId === myUserId ? '' : message.userId.substr(0, 4) }} {{ message.content }}
             </span>
         </div>
-        <div style="height: 30px;"></div>
+        <div style="height: 25px;"></div>
     </div>
 
-    <div class="input-group" id="input-box">
-        <input type="text" class="form-control" v-model="message" @keyup.enter="send" autofocus>
+    <div id="input-box" class="input-group">
+        <input type="text" class="form-control" v-model="message" @keyup.enter="sendMessage" autofocus>
     </div>
 </div>
 
-<script th:inline="javascript">
+<script>
     let vm = new Vue({
         el: '#app',
         data: {
@@ -49,67 +49,88 @@
             message: ''
         },
         methods: {
-            send: function () {
+            handleWsOnOpen: function () {
+                this.showSystemMessage('连接已建立');
+                this.scrollMessageBoxToBottom();
+            },
+            handleWsOnMessage: function (response) {
+                switch (response.type) {
+                    case 'EVT_INIT_ROOM_INFO' :
+                        this.myUserId = response.myUserId;
+                        this.onlineUserIds = response.onlineUserIds;
+                        break;
+                    case 'EVT_USER_ENTER_ROOM' :
+                        if (response.userId === this.myUserId) { break; }
+                        this.onlineUserIds.push(response.userId);
+                        this.showSystemMessage(response.userId.substr(0, 4) + ' 已进入聊天室');
+                        break;
+                    case 'EVT_USER_LEAVE_ROOM' :
+                        for (let i = 0, l = this.onlineUserIds.length; i < l; i++) {
+                            if (this.onlineUserIds[i] === response.userId) {
+                                this.onlineUserIds.splice(i, 1);
+                                break;
+                            }
+                        }
+                        this.showSystemMessage(response.userId.substr(0, 4) + ' 已离开聊天室');
+                        break;
+                    case 'MSG_SYSTEM' :
+                        this.showSystemMessage(response.content);
+                        break;
+                    case 'MSG_USER' :
+                        this.sendUserMessage(response);
+                        break;
+                }
+                this.scrollMessageBoxToBottom();
+            },
+            handleWsOnClose: function () {
+                this.showSystemMessage('连接已断开');
+                this.scrollMessageBoxToBottom();
+            },
+            sendMessage: function () {
                 const message = this.message;
 
                 if (message === '') {
-                    this.messages.push({ type: 'MSG_SYSTEM', content: '消息不能为空' });
+                    this.showSystemMessage('消息不能为空');
+                    this.scrollMessageBoxToBottom();
                     return;
                 }
 
                 ws.send(message);
                 this.message = '';
             },
-            getAvatarDataUrl:  function (hash) {
+            getAvatarDataUrl: function (hash) {
                 return 'data:image/png;base64,' + new Identicon(hash, 21).toString();
+            },
+            showSystemMessage: function (content) {
+                this.messages.push({ type: 'MSG_SYSTEM', content: content });
+            },
+            sendUserMessage: function (response) {
+                this.messages.push(response);
+            },
+            scrollMessageBoxToBottom: function () {
+                const messageBox = document.querySelector('#message-box');
+                messageBox.scrollTop = messageBox.scrollHeight;
             }
         }
     });
+</script>
+
+<script th:inline="javascript">
 
     const ws = new WebSocket('wss://chat.geektry.com/api?room=[(${roomId})]');
     // const ws = new WebSocket('ws://192.168.4.164:8082/api?room=[(${roomId})]');
 
     ws.onopen = () => {
-        vm.messages.push({ type: 'MSG_SYSTEM', content: '连接已建立' });
+        vm.handleWsOnOpen();
     };
 
     ws.onmessage = (evt) => {
         const response = JSON.parse(evt.data);
-
-        switch (response.type) {
-            case 'EVT_INIT_ROOM_INFO' :
-                vm.myUserId = response.myUserId;
-                vm.onlineUserIds = response.onlineUserIds;
-                break;
-            case 'EVT_USER_ENTER_ROOM' :
-                if (response.userId === vm.myUserId) { break; }
-                vm.onlineUserIds.push(response.userId);
-                vm.messages.push({ type: 'MSG_SYSTEM', content: response.userId.substr(0, 4) + ' 已进入聊天室' });
-                break;
-            case 'EVT_USER_LEAVE_ROOM' :
-                for (let i = 0, l = vm.onlineUserIds.length; i < l; i++) {
-                    if (vm.onlineUserIds[i] === response.userId) {
-                        vm.onlineUserIds.splice(i, 1);
-                        break;
-                    }
-                }
-                vm.messages.push({ type: 'MSG_SYSTEM', content: response.userId.substr(0, 4) + ' 已离开聊天室' });
-                break;
-            case 'MSG_SYSTEM' :
-                vm.messages.push(response);
-                break;
-            case 'MSG_USER' :
-                vm.messages.push(response);
-                break;
-        }
-
-        const messageBox = document.querySelector('#message-box');
-        const len = messageBox.children.length;
-        messageBox.children[len - 1].scrollIntoView();
+        vm.handleWsOnMessage(response);
     };
 
     ws.onclose = () => {
-        vm.messages.push({ type: 'MSG_SYSTEM', content: '连接已断开' });
+        vm.handleWsOnClose();
     };
 </script>
 </body>
