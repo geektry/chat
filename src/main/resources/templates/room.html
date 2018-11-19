@@ -82,6 +82,7 @@
                         break;
                 }
                 this.scrollMessageBoxToBottom();
+                this.updateTabInfo();
             },
             handleWsOnClose: function () {
                 this.showSystemMessage('连接已断开');
@@ -111,6 +112,11 @@
             scrollMessageBoxToBottom: function () {
                 const messageBox = document.querySelector('#message-box');
                 messageBox.scrollTop = messageBox.scrollHeight;
+            },
+            updateTabInfo: function () {
+                if (document.visibilityState === 'hidden') {
+                    document.title = '新消息！！！';
+                }
             }
         }
     });
@@ -133,6 +139,14 @@
     ws.onclose = () => {
         vm.handleWsOnClose();
     };
+</script>
+
+<script>
+    document.addEventListener('visibilitychange', function (event) {
+        if (document.visibilityState === 'visible') {
+            document.title = 'GeekTry聊天室';
+        }
+    });
 </script>
 </body>
 </html>
