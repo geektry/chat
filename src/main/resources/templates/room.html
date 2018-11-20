@@ -32,7 +32,6 @@
                 [ {{ message.dateTime }} ] <img :src="getAvatarDataUrl(message.userId)"> {{ message.content }}
             </span>
         </div>
-        <div style="height: 30px;"></div>
     </div>
 
     <div id="input-box" class="input-group">
@@ -82,7 +81,7 @@
                         break;
                 }
                 this.scrollMessageBoxToBottom();
-                this.updateTabInfo();
+                this.notifyOnTab();
             },
             handleWsOnClose: function () {
                 this.showSystemMessage('连接已断开');
@@ -110,10 +109,12 @@
                 this.messages.push(response);
             },
             scrollMessageBoxToBottom: function () {
-                const messageBox = document.querySelector('#message-box');
-                messageBox.scrollTop = messageBox.scrollHeight;
+                this.$nextTick(() => {
+                    const messageBox = document.querySelector('#message-box');
+                    messageBox.scrollTop = messageBox.scrollHeight;
+                });
             },
-            updateTabInfo: function () {
+            notifyOnTab: function () {
                 if (document.visibilityState === 'hidden') {
                     document.title = '新消息！！！';
                 }
