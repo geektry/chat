@@ -2,7 +2,7 @@
 
 ## New Features
 
-## Features to be added
+## Development plans
 1. Matching System
 2. Refactor with asynchronous/non-blocking code
-3. Commands
+3. Chatting Commands
