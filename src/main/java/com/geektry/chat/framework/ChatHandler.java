@@ -2,7 +2,7 @@ package com.geektry.chat.framework;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.geektry.chat.constant.MessageTypeEnum;
+import com.geektry.chat.constant.MessageType;
 import com.geektry.chat.vo.MessageVO;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -90,7 +90,7 @@ public class ChatHandler extends TextWebSocketHandler {
     private void initRoomInfo(WebSocketSession session, Map<String, WebSocketSession> sessions) throws IOException {
 
         session.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
-            put("type", MessageTypeEnum.EVT_INIT_ROOM_INFO);
+            put("type", MessageType.EVT_INIT_ROOM_INFO);
             put("myUserId", session.getId());
             put("onlineUserIds", sessions.keySet());
         }})));
@@ -100,7 +100,7 @@ public class ChatHandler extends TextWebSocketHandler {
 
         for (WebSocketSession sessionItem : sessions.values()) {
             sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
-                put("type", MessageTypeEnum.EVT_USER_ENTER_ROOM);
+                put("type", MessageType.EVT_USER_ENTER_ROOM);
                 put("userId", session.getId());
             }})));
         }
@@ -110,7 +110,7 @@ public class ChatHandler extends TextWebSocketHandler {
 
         for (WebSocketSession sessionItem : sessions.values()) {
             sessionItem.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(new HashMap<String, Object>() {{
-                put("type", MessageTypeEnum.EVT_USER_LEAVE_ROOM);
+                put("type", MessageType.EVT_USER_LEAVE_ROOM);
                 put("userId", session.getId());
             }})));
         }
@@ -126,7 +126,7 @@ public class ChatHandler extends TextWebSocketHandler {
     private String getUserMessageJsonStr(String userId, String content) throws JsonProcessingException {
 
         return new ObjectMapper().writeValueAsString(new MessageVO() {{
-            setType(MessageTypeEnum.MSG_USER);
+            setType(MessageType.MSG_USER);
             setDateTime(LocalDateTime.now().format(FORMATTER));
             setUserId(userId);
             setContent(content);

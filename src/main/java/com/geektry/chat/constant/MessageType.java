@@ -1,6 +1,6 @@
 package com.geektry.chat.constant;
 
-public enum MessageTypeEnum {
+public enum MessageType {
 
     EVT_INIT_ROOM_INFO,
     EVT_USER_ENTER_ROOM,

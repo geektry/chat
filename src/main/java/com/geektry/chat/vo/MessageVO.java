@@ -1,13 +1,13 @@
 package com.geektry.chat.vo;
 
-import com.geektry.chat.constant.MessageTypeEnum;
+import com.geektry.chat.constant.MessageType;
 
 /**
  * @author Chaohang Fu
  */
 public class MessageVO {
 
-    private MessageTypeEnum type;
+    private MessageType type;
 
     private String dateTime;
 
@@ -15,11 +15,11 @@ public class MessageVO {
 
     private String content;
 
-    public MessageTypeEnum getType() {
+    public MessageType getType() {
         return type;
     }
 
-    public void setType(MessageTypeEnum type) {
+    public void setType(MessageType type) {
         this.type = type;
     }
 
