@@ -1,5 +1,5 @@
 /.idea/
 /*.iml
 /target/
-/src/main/resources/application-local.properties
-/src/main/resources/application-prod.properties
+/src/main/resources/application-local.yml
+/src/main/resources/application-prod.yml
